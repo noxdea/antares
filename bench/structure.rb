@@ -16,6 +16,11 @@ highlighter = Antares::Highlighter.new(
 highlighter.tokens_in(0...lines.length)
 structure = highlighter.structure
 full = Benchmark.realtime { structure.fold_regions }
+10.times do |iteration|
+  lines[5000] = "value_5000 = (warmup_#{iteration})\n"
+  highlighter.edit(from_line: 5000, removed: 1, inserted: 1)
+  structure.fold_regions
+end
 samples = Array.new(30) do |iteration|
   Benchmark.realtime do
     lines[5000] = "value_5000 = (#{iteration})\n"

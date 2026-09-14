@@ -13,8 +13,8 @@ expanding selections need the same knowledge of strings and comments.
 
 Derive generic structure from the token rows owned by `Highlighter`. Keep
 per-line structure inputs beside those rows, shift them on edits, and rescan
-from the edited line until an unchanged token row is reached. Rebuild the
-small document-level indexes from those cached inputs.
+from the edited line until `Highlighter` confirms lexer-state convergence.
+Rebuild the small document-level indexes from those cached inputs.
 
 Bracket characters are accepted only from Rouge punctuation tokens. Folding
 also recognizes indentation, consecutive comment lines, and nested region

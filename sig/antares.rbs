@@ -71,7 +71,8 @@ module Antares
 
   class Structure
     def initialize: (lines: ^(Integer) -> String, line_count: ^() -> Integer,
-      tokens_for: ^(Integer) -> row, tokens_in: ^(Range[Integer]) -> Array[row]) -> void
+      tokens_for: ^(Integer) -> row, tokens_in: ^(Range[Integer]) -> Array[row],
+      ?stabilize: ^(Integer) -> Integer) -> void
     def fold_regions: (?Range[Integer]? range) -> Array[Region]
     def brackets: (?Range[Integer]? range) -> Array[Bracket]
     def bracket_at: (Integer line, Integer column) -> Bracket?

@@ -50,6 +50,21 @@ class StructureTest < Minitest::Test
     assert_equal [:token, :block, :line, :block, :block], ranges.map(&:kind)
   end
 
+  def test_ignores_string_comment_and_mismatched_brackets_with_character_columns
+    lines = ["😀 = \"(string)\" # [comment]\n", "é(値)\n", "(])\n"]
+    structure = highlighter(lines).structure
+    assert_equal [[1, 1, 1, 3, 0, "()"]], structure.brackets.map(&:values)
+    assert_raises(RangeError) { structure.bracket_at(1, 5) }
+  end
+
+  def test_selection_token_does_not_include_the_line_separator
+    structure = highlighter(["value\n"]).structure
+    ranges = structure.selection_ranges(0, 2)
+    token = ranges.first
+    assert_equal [0, 0, 0, 5], [token.start_line, token.start_column, token.end_line, token.end_column]
+    assert_equal 1, ranges.length
+  end
+
   def test_edit_reuses_the_structure_and_updates_only_the_changed_suffix
     lines = Array.new(10_000) { |index| "value_#{index} = #{index}\n" }
     highlighter = highlighter(lines, lexer: Rouge::Lexers::Python.new,
@@ -65,10 +80,30 @@ class StructureTest < Minitest::Test
     assert_same line_before, structure.instance_variable_get(:@line_data)[9000]
   end
 
+  def test_edit_waits_for_lexer_state_convergence
+    lines = ["text = <<A\n", "same\n", "A\n", "call()\n", "B\n"]
+    highlighter = highlighter(lines, strategy: :incremental, checkpoint_interval: 2)
+    structure = highlighter.structure
+    assert_equal [[3, 4, 3, 5, 0, "()"]], structure.brackets.map(&:values)
+
+    lines[0] = "text = <<B\n"
+    highlighter.edit(from_line: 0, removed: 1, inserted: 1)
+
+    assert_empty structure.brackets
+  end
+
   def test_rejects_invalid_positions_and_ranges
     structure = highlighter(["x\n"]).structure
     assert_raises(RangeError) { structure.bracket_at(1, 0) }
     assert_raises(ArgumentError) { structure.bracket_at(0, -1) }
     assert_raises(RangeError) { structure.fold_regions(0..1) }
+    assert_raises(RangeError) { structure.fold_regions(0...-1) }
+    assert_empty structure.fold_regions(1...1)
+
+    invalid = Antares::Structure.new(lines: ->(_index) { "x\n" }, line_count: -> { 2 },
+      tokens_for: ->(_index) { [] }, tokens_in: ->(_range) { [[], []] }, stabilize: ->(_line) { -1 })
+    invalid.brackets
+    invalid.edit(from_line: 1, removed: 1, inserted: 1)
+    assert_raises(ArgumentError) { invalid.brackets }
   end
 end

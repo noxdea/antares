@@ -56,7 +56,8 @@ module Antares
         lines: @lines,
         line_count: @line_count,
         tokens_for: method(:tokens_for),
-        tokens_in: method(:tokens_in)
+        tokens_in: method(:tokens_in),
+        stabilize: method(:stabilize_structure)
       )
     end
 
@@ -289,6 +290,12 @@ module Antares
         end
       end
       cache.replace(shifted)
+    end
+
+    def stabilize_structure(from_line)
+      return 0 if @count.zero?
+      advance(until_line: @count - 1, from_line: from_line)
+      strategy == :incremental && @driver ? [@driver.line, @count].min : @count
     end
   end
 end

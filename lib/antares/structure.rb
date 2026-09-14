@@ -13,11 +13,12 @@ module Antares
     Line = Struct.new(:text, :tokens, :brackets, :spans, :indent, :blank,
       :comment, :marker, :label, keyword_init: true)
 
-    def initialize(lines:, line_count:, tokens_for:, tokens_in:)
+    def initialize(lines:, line_count:, tokens_for:, tokens_in:, stabilize: nil)
       @lines = lines
       @line_count = line_count
       @tokens_for = tokens_for
       @tokens_in = tokens_in
+      @stabilize = stabilize
       @line_data = []
       @dirty_from = 0
       @indexes_dirty = true
@@ -35,7 +36,6 @@ module Antares
 
     def bracket_at(line, column)
       validate_position(line, column)
-      refresh
       @bracket_positions[[line, column]]
     end
 
@@ -48,7 +48,6 @@ module Antares
 
     def selection_ranges(line, column)
       validate_position(line, column)
-      refresh
       ranges = []
       token = @line_data.fetch(line).spans.find { |span| span[0] <= column && column < span[1] }
       ranges << selection_region(line, token) if token
@@ -95,11 +94,13 @@ module Antares
         @dirty_from = nil
         return
       end
+      finish = @stabilize ? @stabilize.call(start) : count
+      unless finish.is_a?(Integer) && finish >= start && finish <= count
+        raise ArgumentError, "stabilize must return a line boundary inside the document"
+      end
       index = start
-      while index < count
+      while index < finish
         tokens = @tokens_for.call(index)
-        previous = @line_data[index]
-        break if index > start && previous && (previous.tokens.equal?(tokens) || previous.tokens == tokens)
         @line_data[index] = scan_line(index, tokens)
         index += 1
       end
@@ -117,16 +118,17 @@ module Antares
         name = type.qualname
         unless value.strip.empty?
           significant << name
-          kind = name.start_with?("Comment") ? :comment : (name.start_with?("Literal.String") ? :string : :token)
-          spans << [column, finish, kind, value.delete_suffix("\n")]
+          kind = comment_token?(name) ? :comment : (string_token?(name) ? :string : :token)
+          span_finish = value.end_with?("\n") ? finish - 1 : finish
+          spans << [column, span_finish, kind, value.delete_suffix("\n")] if span_finish > column
         end
-        if name.start_with?("Punctuation")
+        if punctuation_token?(name)
           value.each_char.with_index { |character, offset| brackets << [character, column + offset] if OPEN.key?(character) || CLOSE.key?(character) }
         end
         column = finish
       end
       stripped = text.strip
-      comment = !significant.empty? && significant.all? { |name| name.start_with?("Comment") }
+      comment = !significant.empty? && significant.all? { |name| comment_token?(name) }
       marker = comment && (match = REGION_MARKER.match(text)) ? (match[1] ? :close : :open) : nil
       Line.new(text: text, tokens: tokens, brackets: brackets.freeze, spans: spans.freeze,
         indent: indentation(text), blank: stripped.empty?, comment: comment,
@@ -158,6 +160,8 @@ module Antares
             pairs << Bracket.new(open_line: open_line, open_column: open_column,
               close_line: line_index, close_column: column, depth: depth,
               kind: "#{open}#{character}").freeze
+          else
+            stack.pop
           end
         end
       end
@@ -241,14 +245,22 @@ module Antares
 
     def range_bounds(range)
       raise ArgumentError, "range must have integer bounds" unless range.is_a?(Range) && range.begin.is_a?(Integer) && range.end.is_a?(Integer)
+      count = line_count
       last = range.exclude_end? ? range.end - 1 : range.end
-      raise RangeError, "range outside document" if range.begin.negative? || last >= line_count
+      endpoints = [range.begin, range.end]
+      outside = endpoints.any?(&:negative?) || endpoints.any? { |value| value > count }
+      outside ||= !range.exclude_end? && endpoints.include?(count)
+      raise RangeError, "range outside document" if outside
       [range.begin, last]
     end
 
     def validate_position(line, column)
       validate_line(line)
       raise ArgumentError, "column must be a nonnegative integer" unless column.is_a?(Integer) && column >= 0
+      refresh
+      text = @line_data.fetch(line).text
+      last = text.end_with?("\n") ? text.length - 1 : text.length
+      raise RangeError, "column outside line" if column > last
     end
 
     def validate_line(line)
@@ -272,5 +284,9 @@ module Antares
       end
       column
     end
+
+    def comment_token?(name) = name == "Comment" || name.start_with?("Comment.")
+    def string_token?(name) = name == "Literal.String" || name.start_with?("Literal.String.")
+    def punctuation_token?(name) = name == "Punctuation" || name.start_with?("Punctuation.")
   end
 end
