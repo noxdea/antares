@@ -34,6 +34,7 @@ Antares adds edit-aware, line-oriented syntax highlighting to [Rouge](https://gi
 - Measured compatibility for every Rouge lexer
 - Windowed and full-document fallback strategies
 - Configurable time and memory limits
+- Bracket pairs, fold regions, sticky contexts, and expanding selections
 - Rouge is the only runtime dependency
 
 ## Installation
@@ -78,6 +79,12 @@ highlighter.tokens_for(0) # [[Rouge token class, UTF-8 text], ...]
 lines[0] = "value = 2\n"
 highlighter.edit(from_line: 0, removed: 1, inserted: 1)
 highlighter.tokens_in(0..1) # one token array per line
+
+structure = highlighter.structure # built lazily from the same Rouge tokens
+structure.bracket_at(0, 7)        # matching Antares::Bracket, or nil
+structure.fold_regions            # bracket, indentation, comment, and #region folds
+structure.context_at(1)           # outer-to-inner regions for sticky scroll
+structure.selection_ranges(1, 3)  # inner-to-outer Antares::Region values
 ```
 
 Update the provider before calling `edit`. Line indices are zero based;
@@ -87,6 +94,12 @@ The `lines` provider returns one valid UTF-8 logical line for each index,
 preferably including its newline. Tokens contain text rather than offsets: sum
 `text.bytesize` for byte offsets or `text.length` for character offsets.
 Returned rows, token pairs, and text are frozen.
+
+Bracket and selection columns are zero-based character offsets. A selection
+region's `end_column` is exclusive. Fold regions use inclusive, zero-based line
+indices; their column fields are `nil`. Brackets inside string and comment
+tokens are ignored. `Highlighter#edit` updates the existing `Structure`
+instance and reuses unchanged line data after token state converges.
 
 `frontier` is the first line not yet proven current.
 `advance(until_line: 200)` lets an event loop schedule incremental work.
@@ -165,6 +178,7 @@ bundle install
 bundle exec rake test
 bundle exec ruby script/compatibility --write
 BUDGET=1 bundle exec ruby --yjit bench/highlighting.rb
+BUDGET=1 bundle exec ruby --yjit bench/structure.rb
 ```
 
 Use `MUTATIONS=5 ruby script/compatibility python rust` for a short compatibility

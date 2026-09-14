@@ -10,3 +10,4 @@ migration steps should also remain with the documents that define them.
 
 - [ADR template](template.md)
 - [ADR 001: Certify Rouge state snapshots empirically](001-rouge-snapshots.md)
+- [ADR 002: Derive editor structure from Rouge tokens](002-derive-structure-from-rouge.md)
