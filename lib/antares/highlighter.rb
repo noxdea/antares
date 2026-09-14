@@ -51,6 +51,15 @@ module Antares
       indexes.map { |index| @tokens.fetch(index) { plain(index) } }
     end
 
+    def structure
+      @structure ||= Structure.new(
+        lines: @lines,
+        line_count: @line_count,
+        tokens_for: method(:tokens_for),
+        tokens_in: method(:tokens_in)
+      )
+    end
+
     # Provider contents must already reflect this line edit. Indices are zero based.
     def edit(from_line:, removed:, inserted:)
       values = [from_line, removed, inserted]
@@ -80,6 +89,7 @@ module Antares
       end
       @count = updated_count
       @source = @offsets = @driver = nil
+      @structure&.edit(from_line: from_line, removed: removed, inserted: inserted)
       self
     end
 

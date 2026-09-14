@@ -1,0 +1,8 @@
+brackets:
+0:0-8:0 depth=0 kind={}
+1:12-7:2 depth=1 kind={}
+3:13-6:4 depth=2 kind=[]
+folds:
+0-8 kind=block label={
+1-7 kind=block label="object": {
+3-6 kind=block label="items": [

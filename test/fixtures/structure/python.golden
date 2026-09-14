@@ -1,0 +1,8 @@
+brackets:
+1:9-1:14 depth=0 kind=()
+6:13-6:18 depth=0 kind=()
+folds:
+0-7 kind=region label=#region data
+1-6 kind=block label=def greet(name):
+3-4 kind=comment label=# first
+5-6 kind=block label=if name:

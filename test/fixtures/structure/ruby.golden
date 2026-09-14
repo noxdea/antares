@@ -1,0 +1,9 @@
+brackets:
+2:16-2:21 depth=0 kind=()
+7:10-7:15 depth=0 kind=()
+folds:
+0-11 kind=region label=#region models
+1-9 kind=block label=class User
+2-8 kind=block label=def initialize(name)
+4-5 kind=comment label=# first note
+6-7 kind=block label=if name

@@ -1,0 +1,8 @@
+#region data
+def greet(name):
+    text = "(ignored)"
+    # first
+    # second [ignored]
+    if name:
+        print(text)
+#endregion

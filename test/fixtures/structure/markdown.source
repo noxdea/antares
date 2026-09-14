@@ -1,0 +1,7 @@
+# Heading
+
+<!-- #region details -->
+- item
+  - nested [text]
+  - `code (ignored)`
+<!-- #endregion -->

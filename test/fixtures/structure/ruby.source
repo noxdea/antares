@@ -1,0 +1,12 @@
+#region models
+class User
+  def initialize(name)
+    @name = "(ignored)"
+    # first note
+    # second [ignored]
+    if name
+      puts(name)
+    end
+  end
+end
+#endregion

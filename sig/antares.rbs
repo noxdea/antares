@@ -14,6 +14,7 @@ module Antares
   type strategy = :auto | :incremental | :window | :full
   type token = [Class, String]
   type row = Array[token]
+  type structure_kind = :block | :comment | :string | :region | :token | :line
 
   def self.compatible?: (untyped lexer) -> (:incremental | :window)
 
@@ -43,5 +44,39 @@ module Antares
     def edit: (from_line: Integer, removed: Integer, inserted: Integer) -> self
     def advance: (until_line: Integer, ?from_line: Integer?) -> self
     def checkpoint_bytes: () -> Integer
+    def structure: () -> Structure
+  end
+
+  class Bracket < Struct[untyped]
+    attr_accessor open_line: Integer
+    attr_accessor open_column: Integer
+    attr_accessor close_line: Integer
+    attr_accessor close_column: Integer
+    attr_accessor depth: Integer
+    attr_accessor kind: String
+    def self.new: (?open_line: Integer, ?open_column: Integer, ?close_line: Integer,
+      ?close_column: Integer, ?depth: Integer, ?kind: String) -> Bracket
+  end
+
+  class Region < Struct[untyped]
+    attr_accessor start_line: Integer
+    attr_accessor end_line: Integer
+    attr_accessor kind: structure_kind
+    attr_accessor label: String
+    attr_accessor start_column: Integer?
+    attr_accessor end_column: Integer?
+    def self.new: (?start_line: Integer, ?end_line: Integer, ?kind: structure_kind,
+      ?label: String, ?start_column: Integer?, ?end_column: Integer?) -> Region
+  end
+
+  class Structure
+    def initialize: (lines: ^(Integer) -> String, line_count: ^() -> Integer,
+      tokens_for: ^(Integer) -> row, tokens_in: ^(Range[Integer]) -> Array[row]) -> void
+    def fold_regions: (?Range[Integer]? range) -> Array[Region]
+    def brackets: (?Range[Integer]? range) -> Array[Bracket]
+    def bracket_at: (Integer line, Integer column) -> Bracket?
+    def context_at: (Integer line) -> Array[Region]
+    def selection_ranges: (Integer line, Integer column) -> Array[Region]
+    def edit: (from_line: Integer, removed: Integer, inserted: Integer) -> self
   end
 end

@@ -1,0 +1,10 @@
+brackets:
+1:14-1:19 depth=0 kind=()
+1:21-6:0 depth=0 kind={}
+3:5-3:10 depth=1 kind=()
+3:12-5:2 depth=1 kind={}
+4:15-4:20 depth=2 kind=()
+folds:
+0-7 kind=region label=// #region api
+1-6 kind=block label=function greet(name) {
+3-5 kind=block label=if (name) {

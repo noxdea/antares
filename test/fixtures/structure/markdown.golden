@@ -1,0 +1,4 @@
+brackets:
+folds:
+2-6 kind=region label=<!-- #region details -->
+3-5 kind=block label=- item
