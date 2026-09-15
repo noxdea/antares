@@ -11,7 +11,7 @@ module Antares
     CLOSE = OPEN.invert.freeze
     REGION_MARKER = /\A\s*(?:\#|\/\/|\/\*+|<!--)\s*\#?\s*(end)?region\b/i
     PROVIDER_METHODS = %i[fold_regions brackets bracket_at context_at selection_ranges edit].freeze
-    Line = Struct.new(:text, :tokens, :brackets, :spans, :indent, :blank,
+    Line = Struct.new(:text, :tokens, :brackets, :indent, :blank,
       :comment, :marker, :label, keyword_init: true)
 
     @providers = {}
@@ -65,6 +65,7 @@ module Antares
       @derived_regions = [].freeze
       @fold_start_lines = {}.freeze
       @pending_old_lines = nil
+      @token_kinds = {}
     end
 
     def fold_regions(range = nil)
@@ -92,7 +93,7 @@ module Antares
     def selection_ranges(line, column)
       validate_position(line, column, brackets: true, folds: true)
       ranges = []
-      token = @line_data.fetch(line).spans.find { |span| span[0] <= column && column < span[1] }
+      token = selection_spans(@line_data.fetch(line)).find { |span| span[0] <= column && column < span[1] }
       ranges << selection_region(line, token) if token
       containing_brackets(line, column).each do |bracket|
         ranges << Region.new(start_line: bracket.open_line, end_line: bracket.close_line,
@@ -178,26 +179,24 @@ module Antares
       text = @lines.call(index)
       column = 0
       brackets = []
-      spans = []
-      significant = []
+      significant = false
+      comment = true
       tokens.each do |type, value|
         finish = column + value.length
-        name = type.qualname
-        unless value.strip.empty?
-          significant << name
-          kind = comment_token?(name) ? :comment : (string_token?(name) ? :string : :token)
-          span_finish = value.end_with?("\n") ? finish - 1 : finish
-          spans << [column, span_finish, kind, value.delete_suffix("\n")] if span_finish > column
+        token_kind = @token_kinds[type] ||= classify_token(type.qualname)
+        if comment && !value.strip.empty?
+          significant = true
+          comment = token_kind == :comment
         end
-        if punctuation_token?(name)
+        if token_kind == :punctuation
           value.each_char.with_index { |character, offset| brackets << [character, column + offset] if OPEN.key?(character) || CLOSE.key?(character) }
         end
         column = finish
       end
       stripped = text.strip
-      comment = !significant.empty? && significant.all? { |name| comment_token?(name) }
+      comment &&= significant
       marker = comment && (match = REGION_MARKER.match(text)) ? (match[1] ? :close : :open) : nil
-      Line.new(text: text, tokens: tokens, brackets: brackets.freeze, spans: spans.freeze,
+      Line.new(text: text, tokens: tokens, brackets: brackets.freeze,
         indent: indentation(text), blank: stripped.empty?, comment: comment,
         marker: marker, label: stripped.freeze).freeze
     end
@@ -349,6 +348,22 @@ module Antares
         end_column: span[1], kind: span[2], label: span[3])
     end
 
+    def selection_spans(line)
+      column = 0
+      line.tokens.filter_map do |type, value|
+        span = nil
+        finish = column + value.length
+        unless value.strip.empty?
+          token_kind = @token_kinds[type] ||= classify_token(type.qualname)
+          kind = token_kind == :comment ? :comment : (token_kind == :string ? :string : :token)
+          span_finish = value.end_with?("\n") ? finish - 1 : finish
+          span = [column, span_finish, kind, value.delete_suffix("\n")] if span_finish > column
+        end
+        column = finish
+        span
+      end
+    end
+
     def select_range(values, range)
       return values.dup unless range
       first, last = range_bounds(range)
@@ -403,5 +418,13 @@ module Antares
     def comment_token?(name) = name == "Comment" || name.start_with?("Comment.")
     def string_token?(name) = name == "Literal.String" || name.start_with?("Literal.String.")
     def punctuation_token?(name) = name == "Punctuation" || name.start_with?("Punctuation.")
+
+    def classify_token(name)
+      return :comment if comment_token?(name)
+      return :string if string_token?(name)
+      return :punctuation if punctuation_token?(name)
+
+      :token
+    end
   end
 end
