@@ -157,24 +157,31 @@ module Antares
     def source_line(index)
       value = @lines.call(index)
       raise TypeError, "line provider must return a String" unless value.is_a?(String)
-      raise EncodingError, "line provider must return valid UTF-8" unless value.valid_encoding? && [Encoding::UTF_8, Encoding::US_ASCII].include?(value.encoding)
-      raise ArgumentError, "line provider returned multiple logical lines" if value.count("\n") > 1 || (value.include?("\n") && !value.end_with?("\n"))
+      encoding = value.encoding
+      unless value.valid_encoding? && (encoding == Encoding::UTF_8 || encoding == Encoding::US_ASCII)
+        raise EncodingError, "line provider must return valid UTF-8"
+      end
+      newline = value.index("\n")
+      raise ArgumentError, "line provider returned multiple logical lines" if newline && newline != value.length - 1
       # Providers may omit separators, but an empty final line remains empty.
-      index < @count - 1 && !value.end_with?("\n") ? value + "\n" : value
+      index < @count - 1 && newline.nil? ? value + "\n" : value
     end
 
     def build_source
       return if @source
       parts = Array.new(@count)
-      offsets = [0]
+      offsets = Array.new(@count + 1, 0)
       bytes = 0
-      @count.times do |index|
+      index = 0
+      while index < @count
         line = source_line(index)
-        raise ResourceLimitError, "line exceeds #{@max_line_bytes} bytes" if line.bytesize > @max_line_bytes
-        bytes += line.bytesize
+        line_bytes = line.bytesize
+        raise ResourceLimitError, "line exceeds #{@max_line_bytes} bytes" if line_bytes > @max_line_bytes
+        bytes += line_bytes
         raise ResourceLimitError, "document exceeds #{@max_bytes} bytes" if bytes > @max_bytes
         parts[index] = line
-        offsets << bytes
+        offsets[index + 1] = bytes
+        index += 1
       end
       @source, @offsets = parts.join.freeze, offsets.freeze
     end

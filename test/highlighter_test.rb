@@ -70,6 +70,13 @@ class HighlighterTest < Minitest::Test
     assert_equal :window, Antares.compatible?(Class.new(Rouge::Lexers::Ruby))
   end
 
+  def test_line_provider_validation_accepts_one_separator_only
+    assert_equal "name", highlighter(["name".encode(Encoding::US_ASCII)]).tokens_for(0).map(&:last).join
+    assert_equal "name\r\n", highlighter(["name\r\n"]).tokens_for(0).map(&:last).join
+    assert_raises(ArgumentError) { highlighter(["one\ntwo\n"]).tokens_for(0) }
+    assert_raises(EncodingError) { highlighter(["\xFF".b]).tokens_for(0) }
+  end
+
   def test_size_limits_fallback_without_truncating_text
     lines = ["x" * 100, "puts 1\n"]
     driver = highlighter(lines, strategy: :auto, max_line_bytes: 32)

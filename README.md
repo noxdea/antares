@@ -177,8 +177,7 @@ non-default lexer option.
 bundle install
 bundle exec rake test
 bundle exec ruby script/compatibility --write
-BUDGET=1 bundle exec ruby --yjit bench/highlighting.rb
-BUDGET=1 bundle exec ruby --yjit bench/structure.rb
+BUDGET=1 bundle exec rake bench
 ```
 
 Use `MUTATIONS=5 ruby script/compatibility python rust` for a short compatibility

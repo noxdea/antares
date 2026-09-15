@@ -10,7 +10,10 @@ end
 
 desc "Measure performance (BUDGET=1 enables assertions)"
 task :bench do
-  Dir["bench/*.rb"].sort.each { |path| ruby "--yjit", path }
+  # Keep cold-start compilation out of the visible-range latency, then use
+  # YJIT for the repeated full-document structure workload.
+  ruby "bench/highlighting.rb"
+  ruby "--yjit", "bench/structure.rb"
 end
 
 task default: :test
