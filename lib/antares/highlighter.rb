@@ -68,10 +68,16 @@ module Antares
       raise RangeError, "edit outside previous document" unless from_line <= @count && from_line + removed <= @count
       updated_count = count
       raise ArgumentError, "line_count disagrees with edit" unless updated_count == @count - removed + inserted
+      separator_line = if from_line.positive? &&
+        ((from_line == @count && inserted.positive?) || (from_line + removed == @count && inserted.zero? && removed.positive?))
+        from_line - 1
+      end
+      restart_from = separator_line || from_line
+      source_edit = @source_edit ? nil : (@source && [@source, @offsets, @count, from_line, removed, inserted])
       @last_scanned_lines = 0
       if strategy == :incremental
         @tokens.delete_if { |line, _| line >= frontier } if @old_fingerprints
-        start = @checkpoints.keys.select { |line| line <= from_line && line <= frontier }.max || 0
+        start = @checkpoints.keys.select { |line| line <= restart_from && line <= frontier }.max || 0
         restart = @checkpoints.fetch(start)
         shift_cache(@tokens, from_line, removed, inserted)
         shift_cache(@fingerprints, from_line, removed, inserted)
@@ -89,8 +95,10 @@ module Antares
         @frontier = 0
       end
       @count = updated_count
+      @source_edit = source_edit
       @source = @offsets = @driver = nil
       @structure&.edit(from_line: from_line, removed: removed, inserted: inserted)
+      @structure&.edit(from_line: separator_line, removed: 1, inserted: 1) if separator_line
       self
     end
 
@@ -169,6 +177,11 @@ module Antares
 
     def build_source
       return if @source
+      if @source_edit
+        build_edited_source
+        @source_edit = nil
+        return
+      end
       parts = Array.new(@count)
       offsets = Array.new(@count + 1, 0)
       bytes = 0
@@ -184,6 +197,40 @@ module Antares
         index += 1
       end
       @source, @offsets = parts.join.freeze, offsets.freeze
+    end
+
+    def build_edited_source
+      old_source, old_offsets, old_count, from_line, removed, inserted = @source_edit
+      first = [from_line - 1, 0].max
+      old_suffix = from_line + removed
+      new_suffix = from_line + inserted
+      prefix_bytes = old_offsets.fetch(first)
+      suffix_bytes = old_offsets.fetch(old_suffix)
+      offsets = old_offsets[0..first]
+      middle = []
+      bytes = prefix_bytes
+      index = first
+      while index < new_suffix
+        line = source_line(index)
+        line_bytes = line.bytesize
+        raise ResourceLimitError, "line exceeds #{@max_line_bytes} bytes" if line_bytes > @max_line_bytes
+        bytes += line_bytes
+        middle << line
+        offsets << bytes
+        index += 1
+      end
+      total = bytes + old_source.bytesize - suffix_bytes
+      raise ResourceLimitError, "document exceeds #{@max_bytes} bytes" if total > @max_bytes
+
+      source = String.new(capacity: total)
+      source << old_source.byteslice(0, prefix_bytes) << middle.join << old_source.byteslice(suffix_bytes..)
+      delta = bytes - suffix_bytes
+      boundary = old_suffix + 1
+      while boundary <= old_count
+        offsets << old_offsets.fetch(boundary) + delta
+        boundary += 1
+      end
+      @source, @offsets = source.freeze, offsets.freeze
     end
 
     def advance_incremental(until_line)
@@ -280,6 +327,7 @@ module Antares
 
     def fallback!(strategy, reason)
       @strategy, @fallback_reason = strategy, reason
+      @source_edit = nil
       @driver = @source = @offsets = nil
       @tokens.clear
       @checkpoints.clear

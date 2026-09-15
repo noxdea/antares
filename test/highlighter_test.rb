@@ -59,6 +59,20 @@ class HighlighterTest < Minitest::Test
     assert_equal LexerCompatibility.rows(Rouge::Lexers::Ruby.new, lines.join, lines.length), names(driver.tokens_in(0...lines.length))
   end
 
+  def test_edit_updates_synthesized_final_line_separator
+    lines = ["one"]
+    driver = highlighter(lines, strategy: :incremental)
+    assert_equal "one", driver.tokens_for(0).map(&:last).join
+
+    lines << "two"
+    driver.edit(from_line: 1, removed: 0, inserted: 1)
+    assert_equal ["one\n", "two"], driver.tokens_in(0..1).map { |row| row.map(&:last).join }
+
+    lines.pop
+    driver.edit(from_line: 1, removed: 1, inserted: 0)
+    assert_equal "one", driver.tokens_for(0).map(&:last).join
+  end
+
   def test_full_window_unknown_lexer_and_provider_without_newlines
     lines = ["first = 1", "second = 2", ""]
     full = highlighter(lines, strategy: :full)

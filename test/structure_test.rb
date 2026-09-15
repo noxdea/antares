@@ -71,13 +71,49 @@ class StructureTest < Minitest::Test
       strategy: :incremental, checkpoint_interval: 64)
     structure = highlighter.structure
     assert_empty structure.brackets
+    assert_empty structure.fold_regions
+    derived_before = structure.instance_variable_get(:@derived_regions)
     line_before = structure.instance_variable_get(:@line_data)[9000]
     lines[5000] = "value_5000 = (5000)\n"
     highlighter.edit(from_line: 5000, removed: 1, inserted: 1)
+    assert_empty structure.fold_regions
+    assert_same derived_before, structure.instance_variable_get(:@derived_regions)
     pair = structure.bracket_at(5000, 13)
     assert_equal [13, 18], [pair.open_column, pair.close_column]
     assert_same structure, highlighter.structure
     assert_same line_before, structure.instance_variable_get(:@line_data)[9000]
+  end
+
+  def test_incremental_structure_matches_a_fresh_analysis_after_local_edits
+    original = ["# region alpha\n", "def call(value)\n", "  if value\n", "    list = [\n",
+      "      value,\n", "    ]\n", "  end\n", "end\n", "# endregion\n"]
+    replacements = [[0, "# region beta\n"], [1, "def renamed(value)\n"],
+      [2, "  unless value\n"], [3, "    items = [\n"], [3, "    list = []\n"],
+      [4, "      (value),\n"], [5, "    }\n"], [8, "# trailing comment\n"]]
+
+    replacements.each do |line, replacement|
+      lines = original.dup
+      edited = highlighter(lines, strategy: :incremental, checkpoint_interval: 2)
+      render(edited.structure)
+      lines[line] = replacement
+      edited.edit(from_line: line, removed: 1, inserted: 1)
+
+      assert_equal render(highlighter(lines).structure), render(edited.structure), "edit at line #{line}"
+    end
+  end
+
+  def test_edit_rebuilds_derived_regions_when_a_region_label_changes
+    lines = ["parent\n", "  child\n", "tail\n"]
+    highlighter = highlighter(lines)
+    structure = highlighter.structure
+    assert_equal ["parent"], structure.fold_regions.map(&:label)
+    derived_before = structure.instance_variable_get(:@derived_regions)
+
+    lines[0] = "renamed\n"
+    highlighter.edit(from_line: 0, removed: 1, inserted: 1)
+
+    assert_equal ["renamed"], structure.fold_regions.map(&:label)
+    refute_same derived_before, structure.instance_variable_get(:@derived_regions)
   end
 
   def test_edit_waits_for_lexer_state_convergence

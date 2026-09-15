@@ -21,33 +21,39 @@ module Antares
       @stabilize = stabilize
       @line_data = []
       @dirty_from = 0
-      @indexes_dirty = true
+      @brackets_dirty = true
+      @folds_dirty = true
+      @fold_brackets_dirty = true
+      @derived_dirty = true
+      @derived_regions = [].freeze
+      @fold_start_lines = {}.freeze
+      @pending_old_lines = nil
     end
 
     def fold_regions(range = nil)
-      refresh
+      refresh(folds: true)
       select_range(@fold_regions, range) { |region| [region.start_line, region.end_line] }
     end
 
     def brackets(range = nil)
-      refresh
+      refresh(brackets: true)
       select_range(@brackets, range) { |bracket| [bracket.open_line, bracket.close_line] }
     end
 
     def bracket_at(line, column)
-      validate_position(line, column)
+      validate_position(line, column, brackets: true)
       @bracket_positions[[line, column]]
     end
 
     def context_at(line)
       validate_line(line)
-      refresh
+      refresh(folds: true)
       @fold_regions.select { |region| region.start_line <= line && line <= region.end_line }
         .sort_by { |region| [region.start_line, -region.end_line] }
     end
 
     def selection_ranges(line, column)
-      validate_position(line, column)
+      validate_position(line, column, brackets: true, folds: true)
       ranges = []
       token = @line_data.fetch(line).spans.find { |span| span[0] <= column && column < span[1] }
       ranges << selection_region(line, token) if token
@@ -68,22 +74,37 @@ module Antares
 
     # The provider must already reflect the edit, matching Highlighter#edit.
     def edit(from_line:, removed:, inserted:)
+      if @pending_old_lines || removed != inserted
+        @folds_dirty = @fold_brackets_dirty = @derived_dirty = true
+        @pending_old_lines = nil
+      else
+        @pending_old_lines = [from_line, @line_data.slice(from_line, removed) || []]
+      end
       @line_data[from_line, removed] = Array.new(inserted)
       @dirty_from = [@dirty_from || from_line, from_line].min
-      @indexes_dirty = true
+      @brackets_dirty = true
+      if removed != inserted
+        @folds_dirty = true
+        @fold_brackets_dirty = true
+      end
       self
     end
 
     private
 
-    def refresh
+    def refresh(brackets: false, folds: false)
       count = line_count
       if @line_data.length != count
+        @brackets_dirty = @folds_dirty = @fold_brackets_dirty = @derived_dirty = true
         @line_data.fill(nil, @line_data.length...count) if @line_data.length < count
         @line_data.slice!(count..) if @line_data.length > count
       end
       refresh_lines(count) if @dirty_from
-      rebuild_indexes if @indexes_dirty
+      rebuild_brackets if brackets && @brackets_dirty
+      if folds && @folds_dirty
+        rebuild_brackets if @fold_brackets_dirty && @brackets_dirty
+        rebuild_folds
+      end
       self
     end
 
@@ -101,9 +122,18 @@ module Antares
       index = start
       while index < finish
         tokens = @tokens_for.call(index)
-        @line_data[index] = scan_line(index, tokens)
+        old = old_line(index)
+        updated = scan_line(index, tokens)
+        if bracket_boundary_changed?(old, updated)
+          @fold_brackets_dirty = @folds_dirty = @derived_dirty = true
+        end
+        if derived_line_changed?(old, updated, index)
+          @folds_dirty = @derived_dirty = true
+        end
+        @line_data[index] = updated
         index += 1
       end
+      @pending_old_lines = nil
       @dirty_from = nil
     end
 
@@ -135,17 +165,65 @@ module Antares
         marker: marker, label: stripped.freeze).freeze
     end
 
-    def rebuild_indexes
+    def rebuild_brackets
       @brackets = build_brackets.freeze
       @bracket_positions = {}
       @brackets.each do |bracket|
         @bracket_positions[[bracket.open_line, bracket.open_column]] = bracket
         @bracket_positions[[bracket.close_line, bracket.close_column]] = bracket
       end
-      regions = bracket_regions + derived_regions
+      @brackets_dirty = false
+    end
+
+    def rebuild_folds
+      if @derived_dirty
+        @derived_regions = derived_regions.freeze
+      end
+      regions = bracket_regions + @derived_regions
       @fold_regions = regions.uniq { |region| [region.start_line, region.end_line, region.kind] }
         .sort_by { |region| [region.start_line, -region.end_line, region.kind.to_s] }.freeze
-      @indexes_dirty = false
+      @fold_start_lines = @fold_regions.each_with_object({}) do |region, starts|
+        starts[region.start_line] = true
+      end.freeze
+      @derived_dirty = false
+      @folds_dirty = @fold_brackets_dirty = false
+    end
+
+    def old_line(index)
+      return @line_data[index] unless @pending_old_lines
+
+      first, lines = @pending_old_lines
+      index >= first && index < first + lines.length ? lines[index - first] : @line_data[index]
+    end
+
+    def derived_line_changed?(old, updated, index)
+      return true unless old
+      return false if old.equal?(updated)
+      return true unless old.indent == updated.indent && old.blank == updated.blank &&
+        old.comment == updated.comment && old.marker == updated.marker
+
+      old.label != updated.label && @fold_start_lines.key?(index)
+    end
+
+    def bracket_boundary_changed?(old, updated)
+      return true unless old
+      return false if old.brackets == updated.brackets
+
+      !locally_balanced?(old.brackets) || !locally_balanced?(updated.brackets)
+    end
+
+    def locally_balanced?(brackets)
+      stack = []
+      brackets.each do |character, _column|
+        if OPEN.key?(character)
+          stack << character
+        elsif stack.last == CLOSE.fetch(character)
+          stack.pop
+        else
+          return false
+        end
+      end
+      stack.empty?
     end
 
     def build_brackets
@@ -254,10 +332,10 @@ module Antares
       [range.begin, last]
     end
 
-    def validate_position(line, column)
+    def validate_position(line, column, brackets: false, folds: false)
       validate_line(line)
       raise ArgumentError, "column must be a nonnegative integer" unless column.is_a?(Integer) && column >= 0
-      refresh
+      refresh(brackets: brackets, folds: folds)
       text = @line_data.fetch(line).text
       last = text.end_with?("\n") ? text.length - 1 : text.length
       raise RangeError, "column outside line" if column > last
