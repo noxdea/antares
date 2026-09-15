@@ -1,0 +1,38 @@
+{
+  "name": "Mini",
+  "version": "1.0",
+  "information_for_contributors": ["Metadata does not affect tokenization."],
+  "scopeName": "source.mini",
+  "fileTypes": ["mini"],
+  "patterns": [
+    {"include": "#comments"},
+    {
+      "match": "\\b(def)\\s+([A-Za-z_]\\w*)",
+      "captures": {
+        "1": {"name": "keyword.declaration.mini"},
+        "2": {"name": "entity.name.function.mini"}
+      }
+    },
+    {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.mini",
+      "contentName": "string.quoted.double.mini",
+      "beginCaptures": {"0": {"name": "punctuation.definition.string.begin.mini"}},
+      "endCaptures": {"0": {"name": "punctuation.definition.string.end.mini"}},
+      "patterns": [
+        {"match": "\\\\.", "name": "constant.character.escape.mini"}
+      ]
+    },
+    {
+      "begin": "<<([A-Z]+)$",
+      "end": "^\\1$",
+      "name": "string.unquoted.heredoc.mini",
+      "contentName": "string.unquoted.heredoc.mini"
+    },
+    {"match": "[(){}\\[\\]]", "name": "punctuation.section.mini"}
+  ],
+  "repository": {
+    "comments": {"match": "#.*$", "name": "comment.line.number-sign.mini"}
+  }
+}

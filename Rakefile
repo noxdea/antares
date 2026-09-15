@@ -14,6 +14,7 @@ task :bench do
   # YJIT for the repeated full-document structure workload.
   ruby "bench/highlighting.rb"
   ruby "--yjit", "bench/structure.rb"
+  ruby "bench/tm_language.rb"
 end
 
 task default: :test

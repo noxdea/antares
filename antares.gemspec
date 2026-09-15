@@ -22,4 +22,5 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}).map { |path| File.basename(path) }
   spec.require_paths = ["lib"]
   spec.add_dependency "rouge", "~> 5.0"
+  spec.add_dependency "rexml", ">= 3.2", "< 4"
 end

@@ -10,6 +10,8 @@ module Antares
   end
   class ResourceLimitError < Error
   end
+  class GrammarError < Error
+  end
 
   type strategy = :auto | :incremental | :window | :full
   type token = [Class, String]
@@ -32,6 +34,14 @@ module Antares
   end
 
   def self.compatible?: (untyped lexer) -> (:incremental | :window)
+
+  module Grammar
+    MAX_BYTES: Integer
+    MAX_DEPTH: Integer
+    MAX_RULES: Integer
+    MAX_REGEX_BYTES: Integer
+    def self.load_tmlanguage: (String path) -> untyped
+  end
 
   class LexerStateSnapshot
     attr_reader fingerprint: String

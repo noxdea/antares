@@ -275,8 +275,9 @@ module Antares
 
     def advance_window(first, last)
       Timeout.timeout(@max_seconds) { window_tokens(first, last) }
-    rescue Timeout::Error
-      @fallback_reason = "window lexing exceeded #{@max_seconds} seconds"
+    rescue Timeout::Error, ResourceLimitError => error
+      @fallback_reason = error.is_a?(Timeout::Error) ?
+        "window lexing exceeded #{@max_seconds} seconds" : error.message
       (first..last).each { |index| @tokens[index] = plain(index) }
       @frontier = last + 1
     end

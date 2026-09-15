@@ -35,7 +35,8 @@ Antares adds edit-aware, line-oriented syntax highlighting to [Rouge](https://gi
 - Windowed and full-document fallback strategies
 - Configurable time and memory limits
 - Bracket pairs, fold regions, sticky contexts, and expanding selections
-- Rouge is the only runtime dependency
+- JSON and XML plist tmLanguage grammars for languages Rouge does not cover
+- Rouge and REXML are the only runtime dependencies
 
 ## Installation
 
@@ -120,6 +121,26 @@ A provider returns an object implementing `fold_regions`, `brackets`,
 thread safe, case insensitive, and affects only structures built afterwards.
 Providers must reflect line changes before `Highlighter#edit`, just like the
 line provider. Antares does not depend on Prism.
+
+Load a UTF-8 JSON or XML plist tmLanguage file when Rouge has no lexer for the
+language, then pass the result to `Highlighter` normally:
+
+```ruby
+lexer = Antares::Grammar.load_tmlanguage("syntaxes/example.tmLanguage.json")
+highlighter = Antares::Highlighter.new(lexer: lexer, lines: lines, line_count: count)
+```
+
+The loader supports repository references, `$self`/`$base`, `match`, nested
+patterns, `begin`/`end` (including `applyEndPatternLast`) with numeric
+begin-capture references, and named captures. TextMate comment, string,
+numeric, keyword, storage, name, variable,
+punctuation, markup, and invalid scopes map to their nearest Rouge token types.
+Files are limited to 2 MiB, 64 levels, 10,000 rules, and 16 KiB per regular
+expression; lexing also has byte and time bounds. External grammar includes,
+`while`, nested repositories, capture subgrammars, and injection grammars raise
+`Antares::GrammarError` instead of being partially interpreted.
+The fixed Apple plist 1.0 document type is accepted without external lookup;
+custom document types and entity declarations are rejected.
 
 ## Configuration
 
