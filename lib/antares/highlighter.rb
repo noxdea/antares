@@ -338,6 +338,10 @@ module Antares
 
     def shift_cache(cache, first, removed, inserted)
       delta = inserted - removed
+      if delta.zero?
+        removed.times { |offset| cache.delete(first + offset) }
+        return
+      end
       shifted = {}
       cache.each do |line, value|
         if line < first
