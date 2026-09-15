@@ -52,7 +52,8 @@ module Antares
     end
 
     def structure
-      @structure ||= Structure.new(
+      @structure ||= Structure.build(
+        language: @template.class.tag,
         lines: @lines,
         line_count: @line_count,
         tokens_for: method(:tokens_for),

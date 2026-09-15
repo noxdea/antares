@@ -10,8 +10,45 @@ module Antares
     OPEN = {"(" => ")", "[" => "]", "{" => "}"}.freeze
     CLOSE = OPEN.invert.freeze
     REGION_MARKER = /\A\s*(?:\#|\/\/|\/\*+|<!--)\s*\#?\s*(end)?region\b/i
+    PROVIDER_METHODS = %i[fold_regions brackets bracket_at context_at selection_ranges edit].freeze
     Line = Struct.new(:text, :tokens, :brackets, :spans, :indent, :blank,
       :comment, :marker, :label, keyword_init: true)
+
+    @providers = {}
+    @providers_lock = Mutex.new
+
+    class << self
+      def register(language, provider)
+        raise ArgumentError, "provider must respond to new" unless provider.respond_to?(:new)
+
+        @providers_lock.synchronize { @providers[language_key(language)] = provider }
+        provider
+      end
+
+      def unregister(language)
+        @providers_lock.synchronize { @providers.delete(language_key(language)) }
+      end
+
+      def build(language:, **arguments)
+        provider = language && @providers_lock.synchronize { @providers[language_key(language)] }
+        structure = (provider || self).new(**arguments)
+        missing = PROVIDER_METHODS.reject { |method| structure.respond_to?(method) }
+        raise Error, "structure provider is missing #{missing.join(', ')}" unless missing.empty?
+
+        structure
+      end
+
+      private
+
+      def language_key(language)
+        raise ArgumentError, "language must be a String or Symbol" unless language.is_a?(String) || language.is_a?(Symbol)
+
+        value = language.to_s.downcase
+        raise ArgumentError, "language must be nonempty" if value.empty? || value.include?("\0")
+
+        value.freeze
+      end
+    end
 
     def initialize(lines:, line_count:, tokens_for:, tokens_in:, stabilize: nil)
       @lines = lines

@@ -5,6 +5,7 @@
 - Add edit-aware bracket matching and depth information.
 - Add fold regions for brackets, indentation, consecutive comments, and region markers.
 - Add sticky contexts and expanding selection ranges.
+- Add language-specific structure provider registration without a parser dependency.
 
 ## 0.1.0 — 2026-09-10
 

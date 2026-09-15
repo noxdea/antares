@@ -106,6 +106,21 @@ instance and reuses unchanged line data after token state converges.
 `last_scanned_lines` reports lexical work and `checkpoint_bytes` reports
 normalized checkpoint payload bytes. Highlighter instances are not thread safe.
 
+Language-specific structure providers can replace the generic derivation for
+future highlighters with the matching Rouge lexer tag:
+
+```ruby
+Antares::Structure.register(:ruby, RubyStructureProvider)
+# RubyStructureProvider.new receives the same five callbacks as Structure.new.
+Antares::Structure.unregister(:ruby)
+```
+
+A provider returns an object implementing `fold_regions`, `brackets`,
+`bracket_at`, `context_at`, `selection_ranges`, and `edit`. Registration is
+thread safe, case insensitive, and affects only structures built afterwards.
+Providers must reflect line changes before `Highlighter#edit`, just like the
+line provider. Antares does not depend on Prism.
+
 ## Configuration
 
 <a name="configuration"></a>

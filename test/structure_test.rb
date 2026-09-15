@@ -128,6 +128,47 @@ class StructureTest < Minitest::Test
     assert_empty structure.brackets
   end
 
+  def test_registered_language_provider_is_selected_and_receives_edits
+    provider = Class.new(Antares::Structure) do
+      attr_reader :edits
+
+      def initialize(**arguments)
+        super
+        @edits = []
+      end
+
+      def edit(**change)
+        @edits << change
+        super
+      end
+    end
+    Antares::Structure.register(:ruby, provider)
+    lines = ["call()\n"]
+    ruby = highlighter(lines)
+    structure = ruby.structure
+
+    assert_instance_of provider, structure
+    assert_instance_of Antares::Structure, highlighter(lines, lexer: Rouge::Lexers::Python.new).structure
+    lines[0] = "other()\n"
+    ruby.edit(from_line: 0, removed: 1, inserted: 1)
+    assert_equal [{from_line: 0, removed: 1, inserted: 1}], structure.edits
+    assert_equal [0, 5, 0, 6, 0, "()"], structure.brackets.first.values
+  ensure
+    assert_same provider, Antares::Structure.unregister("RUBY") if provider
+  end
+
+  def test_structure_provider_contract_is_checked_on_use
+    provider = Class.new do
+      def initialize(**_arguments); end
+    end
+    Antares::Structure.register(:ruby, provider)
+
+    error = assert_raises(Antares::Error) { highlighter(["x\n"]).structure }
+    assert_match(/fold_regions/, error.message)
+  ensure
+    Antares::Structure.unregister(:ruby)
+  end
+
   def test_rejects_invalid_positions_and_ranges
     structure = highlighter(["x\n"]).structure
     assert_raises(RangeError) { structure.bracket_at(1, 0) }

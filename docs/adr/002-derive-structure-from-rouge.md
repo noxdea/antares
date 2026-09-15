@@ -18,7 +18,8 @@ Rebuild the small document-level indexes from those cached inputs.
 
 Bracket characters are accepted only from Rouge punctuation tokens. Folding
 also recognizes indentation, consecutive comment lines, and nested region
-markers. Language-specific providers and tmLanguage loading are deferred.
+markers. Language-specific providers can replace this derivation through the
+registry; tmLanguage loading is handled separately.
 
 ## Consequences
 

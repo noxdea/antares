@@ -16,6 +16,21 @@ module Antares
   type row = Array[token]
   type structure_kind = :block | :comment | :string | :region | :token | :line
 
+  interface _Structure
+    def fold_regions: (?Range[Integer]? range) -> Array[Region]
+    def brackets: (?Range[Integer]? range) -> Array[Bracket]
+    def bracket_at: (Integer line, Integer column) -> Bracket?
+    def context_at: (Integer line) -> Array[Region]
+    def selection_ranges: (Integer line, Integer column) -> Array[Region]
+    def edit: (from_line: Integer, removed: Integer, inserted: Integer) -> self
+  end
+
+  interface _StructureProvider
+    def new: (lines: ^(Integer) -> String, line_count: ^() -> Integer,
+      tokens_for: ^(Integer) -> row, tokens_in: ^(Range[Integer]) -> Array[row],
+      stabilize: ^(Integer) -> Integer) -> _Structure
+  end
+
   def self.compatible?: (untyped lexer) -> (:incremental | :window)
 
   class LexerStateSnapshot
@@ -44,7 +59,7 @@ module Antares
     def edit: (from_line: Integer, removed: Integer, inserted: Integer) -> self
     def advance: (until_line: Integer, ?from_line: Integer?) -> self
     def checkpoint_bytes: () -> Integer
-    def structure: () -> Structure
+    def structure: () -> _Structure
   end
 
   class Bracket < Struct[untyped]
@@ -70,6 +85,8 @@ module Antares
   end
 
   class Structure
+    def self.register: (String | Symbol language, _StructureProvider provider) -> _StructureProvider
+    def self.unregister: (String | Symbol language) -> untyped
     def initialize: (lines: ^(Integer) -> String, line_count: ^() -> Integer,
       tokens_for: ^(Integer) -> row, tokens_in: ^(Range[Integer]) -> Array[row],
       ?stabilize: ^(Integer) -> Integer) -> void
