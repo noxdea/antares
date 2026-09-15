@@ -165,16 +165,18 @@ module Antares
 
     def build_source
       return if @source
-      source = +""
+      parts = Array.new(@count)
       offsets = [0]
+      bytes = 0
       @count.times do |index|
         line = source_line(index)
         raise ResourceLimitError, "line exceeds #{@max_line_bytes} bytes" if line.bytesize > @max_line_bytes
-        raise ResourceLimitError, "document exceeds #{@max_bytes} bytes" if source.bytesize + line.bytesize > @max_bytes
-        source << line
-        offsets << source.bytesize
+        bytes += line.bytesize
+        raise ResourceLimitError, "document exceeds #{@max_bytes} bytes" if bytes > @max_bytes
+        parts[index] = line
+        offsets << bytes
       end
-      @source, @offsets = source.freeze, offsets.freeze
+      @source, @offsets = parts.join.freeze, offsets.freeze
     end
 
     def advance_incremental(until_line)
