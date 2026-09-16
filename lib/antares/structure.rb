@@ -104,7 +104,7 @@ module Antares
           kind: :block, label: bracket.kind)
       end
       ranges << Region.new(start_line: line, end_line: line, start_column: 0,
-        end_column: @line_data.fetch(line).text.delete_suffix("\n").length,
+        end_column: line_content(@line_data.fetch(line).text).length,
         kind: :line, label: @line_data.fetch(line).label)
       ranges.concat(context_at(line).reverse)
       ranges.uniq { |region| [region.start_line, region.start_column, region.end_line, region.end_column] }
@@ -356,8 +356,9 @@ module Antares
         unless value.strip.empty?
           token_kind = @token_kinds[type] ||= classify_token(type.qualname)
           kind = token_kind == :comment ? :comment : (token_kind == :string ? :string : :token)
-          span_finish = value.end_with?("\n") ? finish - 1 : finish
-          span = [column, span_finish, kind, value.delete_suffix("\n")] if span_finish > column
+          content = line_content(value)
+          span_finish = column + content.length
+          span = [column, span_finish, kind, content] if span_finish > column
         end
         column = finish
         span
@@ -389,8 +390,12 @@ module Antares
       raise ArgumentError, "column must be a nonnegative integer" unless column.is_a?(Integer) && column >= 0
       refresh(brackets: brackets, folds: folds)
       text = @line_data.fetch(line).text
-      last = text.end_with?("\n") ? text.length - 1 : text.length
+      last = line_content(text).length
       raise RangeError, "column outside line" if column > last
+    end
+
+    def line_content(text)
+      text.end_with?("\r\n") ? text.delete_suffix("\r\n") : text.delete_suffix("\n")
     end
 
     def validate_line(line)

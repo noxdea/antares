@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-09-16
+
+- Keep expanding-selection columns within CRLF line content.
+
 ## 0.2.0 — 2026-09-15
 
 - Add edit-aware bracket matching and depth information.

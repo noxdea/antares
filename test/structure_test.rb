@@ -65,6 +65,23 @@ class StructureTest < Minitest::Test
     assert_equal 1, ranges.length
   end
 
+  def test_selection_ranges_exclude_crlf_from_columns
+    lines = ["値😀 tail\r\n"]
+    structure = highlighter(lines).structure
+    assert_equal 7, structure.selection_ranges(0, 1).find { |range| range.kind == :line }.end_column
+    assert_equal 7, structure.selection_ranges(0, 7).first.end_column
+    assert_raises(RangeError) { structure.selection_ranges(0, 8) }
+
+    plain = highlighter(lines, strategy: :window, max_line_bytes: 4).structure
+    assert_equal 7, plain.selection_ranges(0, 1).first.end_column
+  end
+
+  def test_selection_ranges_preserve_non_separator_suffixes
+    ["value", "value\r"].each do |line|
+      assert_equal line.length, highlighter([line]).structure.selection_ranges(0, line.length).first.end_column
+    end
+  end
+
   def test_edit_reuses_the_structure_and_updates_only_the_changed_suffix
     lines = Array.new(10_000) { |index| "value_#{index} = #{index}\n" }
     highlighter = highlighter(lines, lexer: Rouge::Lexers::Python.new,
