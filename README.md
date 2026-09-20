@@ -24,6 +24,8 @@
 
 Antares adds edit-aware, line-oriented syntax highlighting to [Rouge](https://github.com/rouge-ruby/rouge). It reuses lexer state where compatibility tests show that incremental highlighting is safe, and falls back to bounded re-highlighting for other lexers. Document storage and colors remain with the caller.
 
+![Antares syntax highlighting](docs/media/screenshot.png)
+
 ## Features
 
 <a name="features"></a>

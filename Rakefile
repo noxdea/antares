@@ -19,6 +19,11 @@ end
 
 task default: :test
 
+desc "Regenerate deterministic demo media"
+task :demo do
+  Dir["demo/*.rb"].sort.each { |path| ruby "-Ilib", path }
+end
+
 desc "Regenerate the compatibility matrix against the installed Rouge"
 task :compatibility do
   ruby "script/compatibility", "--write"

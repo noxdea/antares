@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add a deterministic syntax-highlighting demo image and regeneration task.
+
 ## 0.2.1 — 2026-09-16
 
 - Keep expanding-selection columns within CRLF line content.
