@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 — 2026-09-21
 
 - Add a deterministic syntax-highlighting demo image and regeneration task.
 
