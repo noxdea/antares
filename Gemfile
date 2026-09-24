@@ -8,4 +8,5 @@ group :development, :test do
   gem "rake", "~> 13.0"
   gem "minitest", "~> 5.0"
   gem "rbs", "~> 3.9"
+  gem "zaniah", "~> 0.10.0"
 end

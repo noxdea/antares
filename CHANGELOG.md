@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 — 2026-09-25
+
+- Add a CodeEditor highlighter adapter that maps Rouge scopes to theme syntax tokens.
+
 ## 0.2.2 — 2026-09-21
 
 - Add a deterministic syntax-highlighting demo image and regeneration task.
