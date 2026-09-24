@@ -72,6 +72,12 @@ module Antares
     def structure: () -> _Structure
   end
 
+  class ZaniahHighlighter
+    def initialize: (lexer: untyped, buffer: untyped) -> void
+    def tokens: (Integer index, String text) -> Array[[Range[Integer], Symbol]]
+    def edited: (Range[Integer] range, String replacement) -> self
+  end
+
   class Bracket < Struct[untyped]
     attr_accessor open_line: Integer
     attr_accessor open_column: Integer

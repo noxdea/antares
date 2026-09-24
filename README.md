@@ -93,6 +93,26 @@ structure.selection_ranges(1, 3)  # inner-to-outer Antares::Region values
 Update the provider before calling `edit`. Line indices are zero based;
 `removed` is the old line count and `inserted` is the new line count.
 
+For Zaniah 0.10's `UI::CodeEditor`, load `antares/zaniah_highlighter` and
+pass the same buffer to `Antares::ZaniahHighlighter.new(lexer:, buffer:)` and
+`CodeEditor.new(buffer:, highlighter:)`. The optional adapter translates Rouge
+tokens into byte ranges and `Theme::Syntax` scopes. It updates Antares after
+the editor changes the buffer; Antares itself does not depend on Zaniah.
+
+| Rouge scope prefix | Syntax scope |
+| --- | --- |
+| `Keyword` | `keyword` |
+| `Literal.String` | `string` |
+| `Literal.Number` | `number` |
+| `Comment` | `comment` |
+| `Name.Function`, `Name.Builtin` | `function` |
+| `Name.Class`, `Name.Namespace`, `Name.Decorator` | `type` |
+| `Name.Constant` | `constant` |
+| `Name.Variable` | `variable` |
+| `Operator` | `operator` |
+| `Punctuation` | `punctuation` |
+| other | `text` |
+
 The `lines` provider returns one valid UTF-8 logical line for each index,
 preferably including its newline. Tokens contain text rather than offsets: sum
 `text.bytesize` for byte offsets or `text.length` for character offsets.
