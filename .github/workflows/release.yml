@@ -36,7 +36,7 @@ jobs:
           BUDGET=1 bundle exec rake bench
           gem build --strict antares.gemspec --output /tmp/antares.gem
       - name: Publish through RubyGems trusted publishing
-        uses: rubygems/release-gem@7f9650160c1a4e7989fdc9855807bdbd421d8b6b # v1.4.1
+        uses: rubygems/release-gem@5c53f5308233b7c0f47411f0471b3faae6fa57b2 # v1.4.2
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
